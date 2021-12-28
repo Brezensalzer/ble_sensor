@@ -13,8 +13,10 @@ BMx280I2C bmx280(I2C_ADDRESS);
 
 // Environmental Sensing Service:  0x181A
 // Temperature Celsius Char: 0x2A1F
-BLEService        tempSvc = BLEService(UUID16_SVC_ENVIRONMENTAL_SENSING);
+BLEService        envSvc = BLEService(UUID16_SVC_ENVIRONMENTAL_SENSING);
 BLECharacteristic tempChar = BLECharacteristic(UUID16_CHR_TEMPERATURE_CELSIUS);
+BLECharacteristic humChar = BLECharacteristic(UUID16_CHR_HUMIDITY);
+BLECharacteristic airChar = BLECharacteristic(UUID16_UNIT_PRESSURE_PASCAL);
 
 BLEDis bledis;    // DIS (Device Information Service) helper class instance
 BLEBas blebas;    // BAS (Battery Service) helper class instance
@@ -99,6 +101,7 @@ void setup()
 
   Serial.println("Ready Player One!!!");
   Serial.println("\nAdvertising");
+  //--- setup BLE ---------------------------------------------------
 }
 
 // ------------------------------------------------------------------------------
@@ -110,7 +113,7 @@ void startAdv(void)
   Bluefruit.Advertising.addTxPower();
 
   // Include Temperature Service UUID
-  Bluefruit.Advertising.addService(tempSvc);
+  Bluefruit.Advertising.addService(envSvc);
 
   // Include Name
   Bluefruit.Advertising.addName();
@@ -134,7 +137,7 @@ void startAdv(void)
 void setupTemp(void)
 // ------------------------------------------------------------------------------
 {
-  tempSvc.begin();
+  envSvc.begin();
 
   // Note: You must call .begin() on the BLEService before calling .begin() on
   // any characteristic(s) within that service definition.. Calling .begin() on
@@ -146,6 +149,18 @@ void setupTemp(void)
   tempChar.setFixedLen(2);
   tempChar.setCccdWriteCallback(cccd_callback);  // Optionally capture CCCD updates
   tempChar.begin();
+  
+  humChar.setProperties(CHR_PROPS_NOTIFY|CHR_PROPS_READ);
+  humChar.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
+  humChar.setFixedLen(2);
+  humChar.setCccdWriteCallback(cccd_callback);  // Optionally capture CCCD updates
+  humChar.begin();
+  
+  airChar.setProperties(CHR_PROPS_NOTIFY|CHR_PROPS_READ);
+  airChar.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
+  airChar.setFixedLen(2);
+  airChar.setCccdWriteCallback(cccd_callback);  // Optionally capture CCCD updates
+  airChar.begin();
 }
 
 // ------------------------------------------------------------------------------
@@ -197,6 +212,20 @@ void cccd_callback(short unsigned int conn_hdl, BLECharacteristic* chr, short un
             Serial.println("Temperature Measurement 'Notify' disabled");
         }
     }
+    if (chr->uuid == humChar.uuid) {
+        if (chr->notifyEnabled(conn_hdl)) {
+            Serial.println("Humidity Measurement 'Notify' enabled");
+        } else {
+            Serial.println("Humidity Measurement 'Notify' disabled");
+        }
+    }
+    if (chr->uuid == airChar.uuid) {
+        if (chr->notifyEnabled(conn_hdl)) {
+            Serial.println("Air Pressure Measurement 'Notify' enabled");
+        } else {
+            Serial.println("Air Pressure Measurement 'Notify' disabled");
+        }
+    }
 }
 
 // ------------------------------------------------------------------------------
@@ -238,11 +267,22 @@ void loop()
     // The characteristic's value is still updated although notification is not sent
     if ( tempChar.notify(tempdata, sizeof(tempdata)) ){
       Serial.print("Temperature Measurement updated to: "); Serial.println(celsius); 
+    }else{
+      Serial.println("WARN: Notify not set in the CCCD or not connected!");
+    }
+
+    if ( humChar.notify(humdata, sizeof(humdata)) ){
       Serial.print("Humidity Measurement updated to: "); Serial.println(humidity);
+    }else{
+      Serial.println("WARN: Notify not set in the CCCD or not connected!");
+    }
+
+    if ( airChar.notify(airdata, sizeof(airdata)) ){
       Serial.print("Air Pressure Measurement updated to: "); Serial.println(pressure);
     }else{
       Serial.println("WARN: Notify not set in the CCCD or not connected!");
     }
+
   } else {
     digitalWrite(LED_RED, HIGH);
   }
