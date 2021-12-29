@@ -3,15 +3,18 @@
 //-------------------------------------------------------------------------------
 #include <bluefruit.h>
 
+// BME280 I2C Sensor
 #include <Wire.h>
 #include <BMx280I2C.h>
-
 #define I2C_ADDRESS 0x76
-
 //create a BMx280I2C object using the I2C interface with I2C Address 0x76
 BMx280I2C bmx280(I2C_ADDRESS);
 
-// Environmental Sensing Service
+// ADC Battery Monitoring
+const int adcPin = A5;
+float mv_per_lsb = 3600.0F/1024.0F; // 10-bit ADC with 3.6V input range
+
+// BLE Environmental Sensing Service
 BLEService        envSvc = BLEService(UUID16_SVC_ENVIRONMENTAL_SENSING);  // 0x181A
 BLECharacteristic tempChar = BLECharacteristic(UUID16_CHR_TEMPERATURE);   // 0x2A6E
 BLECharacteristic humChar = BLECharacteristic(UUID16_CHR_HUMIDITY);       // 0x2A6F
@@ -20,7 +23,15 @@ BLECharacteristic airChar = BLECharacteristic(UUID16_CHR_PRESSURE);       // 0x2
 BLEDis bledis;    // DIS (Device Information Service) helper class instance
 BLEBas blebas;    // BAS (Battery Service) helper class instance
 
-int  temp = 0;
+//------------------------------------------------------------------------------
+uint8_t batteryLevel()
+//------------------------------------------------------------------------------
+{
+  int adcValue = analogRead(adcPin);
+  // 1024 = 3.6V, 768 = 2.7V cut off voltage for LiFePO4 batteries
+  uint8_t value = map(adcValue, 768, 1024, 0, 100);
+  return value;  
+}
 
 //------------------------------------------------------------------------------
 void setup()
@@ -35,7 +46,7 @@ void setup()
     delay(100);   // for nrf52840 with native usb
   }
 
-  //--- setup sensor ------------------------------------------------
+  //--- setup BME280 sensor -----------------------------------------
   Wire.begin();
 
   //begin() checks the Interface, reads the sensor ID (to differentiate between BMP280 and BME280)
@@ -63,8 +74,7 @@ void setup()
   //if sensor is a BME280, set an oversampling setting for humidity measurements.
   if (bmx280.isBME280())
     bmx280.writeOversamplingHumidity(BMx280MI::OSRS_H_x16);
-  //--- setup sensor ------------------------------------------------
-
+  //--- setup BME280 sensor -----------------------------------------
 
   //--- setup BLE ---------------------------------------------------
   Serial.println("ItsyBitsy nRF52840 Environmental Sensor");
@@ -87,7 +97,7 @@ void setup()
   // Start the BLE Battery Service and set it to 100%
   Serial.println("Configuring the Battery Service");
   blebas.begin();
-  blebas.write(100);
+  blebas.write(batteryLevel());
 
   // Setup the Temperature Monitor service using
   // BLEService and BLECharacteristic classes
@@ -103,9 +113,9 @@ void setup()
   //--- setup BLE ---------------------------------------------------
 }
 
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void startAdv(void)
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 {
   // Advertising packet
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
@@ -133,9 +143,9 @@ void startAdv(void)
   Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds  
 }
 
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void setupTemp(void)
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 {
   envSvc.begin();
 
@@ -163,9 +173,9 @@ void setupTemp(void)
   airChar.begin();
 }
 
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void connect_callback(uint16_t conn_handle)
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 {
   // Get the reference to current connection
   BLEConnection* connection = Bluefruit.Connection(conn_handle);
@@ -182,9 +192,9 @@ void connect_callback(uint16_t conn_handle)
  * @param conn_handle connection where this event happens
  * @param reason is a BLE_HCI_STATUS_CODE which can be found in ble_hci.h
  */
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void disconnect_callback(uint16_t conn_handle, uint8_t reason)
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 {
   (void) conn_handle;
   (void) reason;
@@ -193,9 +203,9 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason)
   Serial.println("Advertising!");
 }
 
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void cccd_callback(short unsigned int conn_hdl, BLECharacteristic* chr, short unsigned int cccd_value)
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 {
     // Display the raw request packet
     Serial.print("CCCD Updated: ");
@@ -228,12 +238,15 @@ void cccd_callback(short unsigned int conn_hdl, BLECharacteristic* chr, short un
     }
 }
 
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void loop()
-// ------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 {  
   if ( Bluefruit.connected() ) {
     digitalWrite(LED_RED, LOW);
+
+    // BME280 sensor wakeup
+    bmx280.writePowerMode(BMx280MI::BMx280_MODE_FORCED);
 
     //--- start a measurement ---------------------------------------------------
     if (!bmx280.measure())
@@ -259,8 +272,11 @@ void loop()
     float pressure = bmx280.getPressure();
     int air = int(pressure/100.0);                                // air pressure value
     uint8_t airdata[2] = { lowByte(air), highByte(air) };
-    
-    blebas.write(98);                                             // simulated battery value
+
+    uint8_t bat = batteryLevel();
+    blebas.write(bat);
+    blebas.notify(bat);
+    Serial.print("Battery Level: "); Serial.println(bat);
 
     // Note: We use .notify instead of .write!
     // If it is connected but CCCD is not enabled
@@ -287,6 +303,9 @@ void loop()
     digitalWrite(LED_RED, HIGH);
   }
 
+  // BME280 sensor sleep
+  bmx280.writePowerMode(BMx280MI::BMx280_MODE_SLEEP);
+  
   // Only send update once per 30 seconds
   delay(30000);
 }
