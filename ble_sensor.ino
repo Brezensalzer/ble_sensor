@@ -11,12 +11,11 @@
 //create a BMx280I2C object using the I2C interface with I2C Address 0x76
 BMx280I2C bmx280(I2C_ADDRESS);
 
-// Environmental Sensing Service:  0x181A
-// Temperature Celsius Char: 0x2A1F
-BLEService        envSvc = BLEService(UUID16_SVC_ENVIRONMENTAL_SENSING);
-BLECharacteristic tempChar = BLECharacteristic(UUID16_CHR_TEMPERATURE_CELSIUS);
-BLECharacteristic humChar = BLECharacteristic(UUID16_CHR_HUMIDITY);
-BLECharacteristic airChar = BLECharacteristic(UUID16_UNIT_PRESSURE_PASCAL);
+// Environmental Sensing Service
+BLEService        envSvc = BLEService(UUID16_SVC_ENVIRONMENTAL_SENSING);  // 0x181A
+BLECharacteristic tempChar = BLECharacteristic(UUID16_CHR_TEMPERATURE);   // 0x2A6E
+BLECharacteristic humChar = BLECharacteristic(UUID16_CHR_HUMIDITY);       // 0x2A6F
+BLECharacteristic airChar = BLECharacteristic(UUID16_CHR_PRESSURE);       // 0x2A6D
 
 BLEDis bledis;    // DIS (Device Information Service) helper class instance
 BLEBas blebas;    // BAS (Battery Service) helper class instance
@@ -116,6 +115,7 @@ void startAdv(void)
   Bluefruit.Advertising.addService(envSvc);
 
   // Include Name
+  Bluefruit.setName("Bluefruit");
   Bluefruit.Advertising.addName();
   
   /* Start Advertising
