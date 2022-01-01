@@ -3,6 +3,9 @@
 //-------------------------------------------------------------------------------
 #include <bluefruit.h>
 
+// save power without serial interface...
+const boolean DEBUG = false;
+
 // BME280 I2C Sensor
 #include <Wire.h>
 #include <BMx280I2C.h>
@@ -37,15 +40,18 @@ uint8_t batteryLevel()
 void setup()
 //------------------------------------------------------------------------------
 {
-  Serial.begin(115200);
-  int i = 0;
-  while ( !Serial ) 
+  if (DEBUG) //------------------------------------------
   {
-    i++;
-    if (i > 20) break;
-    delay(100);   // for nrf52840 with native usb
+    Serial.begin(115200);
+    int i = 0;
+    while ( !Serial ) 
+    {
+      i++;
+      if (i > 20) break;
+      delay(100);   // for nrf52840 with native usb
+    }
   }
-
+  
   //--- setup BME280 sensor -----------------------------------------
   Wire.begin();
 
@@ -53,15 +59,18 @@ void setup()
   //and reads compensation parameters.
   if (!bmx280.begin())
   {
-    Serial.println("begin() failed. check your BMx280 Interface and I2C Address.");
+    if (DEBUG) { Serial.println("begin() failed. check your BMx280 Interface and I2C Address."); }
     while (1);
   }
 
-  if (bmx280.isBME280())
-    Serial.println("sensor is a BME280");
-  else
-    Serial.println("sensor is a BMP280");
-
+  if (DEBUG) //------------------------------------------
+  {
+    if (bmx280.isBME280())
+      Serial.println("sensor is a BME280");
+    else
+      Serial.println("sensor is a BMP280");
+  }
+  
   //reset sensor to default parameters.
   bmx280.resetToDefaults();
 
@@ -77,11 +86,14 @@ void setup()
   //--- setup BME280 sensor -----------------------------------------
 
   //--- setup BLE ---------------------------------------------------
-  Serial.println("ItsyBitsy nRF52840 Environmental Sensor");
-  Serial.println("---------------------------------------\n");
+  if (DEBUG) //------------------------------------------
+  {
+    Serial.println("ItsyBitsy nRF52840 Environmental Sensor");
+    Serial.println("---------------------------------------\n");
+  }
 
   // Initialise the Bluefruit module
-  Serial.println("Initialise the ItsyBitsy nRF52840 module");
+  if (DEBUG) { Serial.println("Initialise the ItsyBitsy nRF52840 module"); }
   Bluefruit.begin();
 
   // Set the connect/disconnect callback handlers
@@ -89,27 +101,26 @@ void setup()
   Bluefruit.Periph.setDisconnectCallback(disconnect_callback);
 
   // Configure and Start the Device Information Service
-  Serial.println("Configuring the Device Information Service");
+  if (DEBUG) { Serial.println("Configuring the Device Information Service"); }
   bledis.setManufacturer("Adafruit Industries");
   bledis.setModel("Adafruit ItsyBitsy nRF52840");
   bledis.begin();
 
   // Start the BLE Battery Service and set it to 100%
-  Serial.println("Configuring the Battery Service");
+  if (DEBUG) { Serial.println("Configuring the Battery Service"); }
   blebas.begin();
   blebas.write(batteryLevel());
 
   // Setup the Temperature Monitor service using
   // BLEService and BLECharacteristic classes
-  Serial.println("Configuring the Temperature Monitor Service");
+  if (DEBUG) { Serial.println("Configuring the Temperature Monitor Service"); }
   setupTemp();
 
   // Setup the advertising packet(s)
-  Serial.println("Setting up the advertising payload(s)");
+  if (DEBUG) { Serial.println("Setting up the advertising payload(s)"); }
   startAdv();
 
-  Serial.println("Ready Player One!!!");
-  Serial.println("\nAdvertising");
+  if (DEBUG) { Serial.println("\nAdvertising"); }
   //--- setup BLE ---------------------------------------------------
 }
 
@@ -183,8 +194,11 @@ void connect_callback(uint16_t conn_handle)
   char central_name[32] = { 0 };
   connection->getPeerName(central_name, sizeof(central_name));
 
-  Serial.print("Connected to ");
-  Serial.println(central_name);
+  if (DEBUG) 
+  { 
+    Serial.print("Connected to ");
+    Serial.println(central_name);
+  }
 }
 
 /**
@@ -199,41 +213,47 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason)
   (void) conn_handle;
   (void) reason;
 
-  Serial.print("Disconnected, reason = 0x"); Serial.println(reason, HEX);
-  Serial.println("Advertising!");
+  if (DEBUG) 
+  { 
+    Serial.print("Disconnected, reason = 0x"); Serial.println(reason, HEX);
+    Serial.println("Advertising!");
+  }
 }
 
 //------------------------------------------------------------------------------
 void cccd_callback(short unsigned int conn_hdl, BLECharacteristic* chr, short unsigned int cccd_value)
 //------------------------------------------------------------------------------
 {
-    // Display the raw request packet
-    Serial.print("CCCD Updated: ");
-    //Serial.printBuffer(request->data, request->len);
-    Serial.print(cccd_value);
-    Serial.println("");
-
+    if (DEBUG) 
+    { 
+      // Display the raw request packet
+      Serial.print("CCCD Updated: ");
+      //Serial.printBuffer(request->data, request->len);
+      Serial.print(cccd_value);
+      Serial.println("");
+    }
+    
     // Check the characteristic this CCCD update is associated with in case
     // this handler is used for multiple CCCD records.
     if (chr->uuid == tempChar.uuid) {
         if (chr->notifyEnabled(conn_hdl)) {
-            Serial.println("Temperature Measurement 'Notify' enabled");
+            if (DEBUG) { Serial.println("Temperature Measurement 'Notify' enabled"); }
         } else {
-            Serial.println("Temperature Measurement 'Notify' disabled");
+            if (DEBUG) { Serial.println("Temperature Measurement 'Notify' disabled"); }
         }
     }
     if (chr->uuid == humChar.uuid) {
         if (chr->notifyEnabled(conn_hdl)) {
-            Serial.println("Humidity Measurement 'Notify' enabled");
+            if (DEBUG) { Serial.println("Humidity Measurement 'Notify' enabled"); }
         } else {
-            Serial.println("Humidity Measurement 'Notify' disabled");
+            if (DEBUG) { Serial.println("Humidity Measurement 'Notify' disabled"); }
         }
     }
     if (chr->uuid == airChar.uuid) {
         if (chr->notifyEnabled(conn_hdl)) {
-            Serial.println("Air Pressure Measurement 'Notify' enabled");
+            if (DEBUG) { Serial.println("Air Pressure Measurement 'Notify' enabled"); }
         } else {
-            Serial.println("Air Pressure Measurement 'Notify' disabled");
+            if (DEBUG) { Serial.println("Air Pressure Measurement 'Notify' disabled"); }
         }
     }
 }
@@ -251,7 +271,7 @@ void loop()
     //--- start a measurement ---------------------------------------------------
     if (!bmx280.measure())
     {
-      Serial.println("could not start measurement, is a measurement already running?");
+      if (DEBUG) { Serial.println("could not start measurement, is a measurement already running?"); }
       return;
     }
   
@@ -276,36 +296,34 @@ void loop()
     uint8_t bat = batteryLevel();
     blebas.write(bat);
     blebas.notify(bat);
-    Serial.print("Battery Level: "); Serial.println(bat);
+    if (DEBUG) { Serial.print("Battery Level: "); Serial.println(bat); }
 
     // Note: We use .notify instead of .write!
     // If it is connected but CCCD is not enabled
     // The characteristic's value is still updated although notification is not sent
     if ( tempChar.notify(tempdata, sizeof(tempdata)) ){
-      Serial.print("Temperature Measurement updated to: "); Serial.println(celsius); 
+      if (DEBUG) { Serial.print("Temperature Measurement updated to: "); Serial.println(celsius); }
     }else{
-      Serial.println("WARN: Notify not set in the CCCD or not connected!");
+      if (DEBUG) { Serial.println("WARN: Notify not set in the CCCD or not connected!"); }
     }
 
     if ( humChar.notify(humdata, sizeof(humdata)) ){
-      Serial.print("Humidity Measurement updated to: "); Serial.println(humidity);
+      if (DEBUG) { Serial.print("Humidity Measurement updated to: "); Serial.println(humidity); }
     }else{
-      Serial.println("WARN: Notify not set in the CCCD or not connected!");
+      if (DEBUG) { Serial.println("WARN: Notify not set in the CCCD or not connected!"); }
     }
 
     if ( airChar.notify(airdata, sizeof(airdata)) ){
-      Serial.print("Air Pressure Measurement updated to: "); Serial.println(pressure);
+      if (DEBUG) { Serial.print("Air Pressure Measurement updated to: "); Serial.println(pressure); }
     }else{
-      Serial.println("WARN: Notify not set in the CCCD or not connected!");
+      if (DEBUG) { Serial.println("WARN: Notify not set in the CCCD or not connected!"); }
     }
 
-  } else {
-    digitalWrite(LED_RED, HIGH);
-  }
+  } // if ( Bluefruit.connected())
 
   // BME280 sensor sleep
   bmx280.writePowerMode(BMx280MI::BMx280_MODE_SLEEP);
   
-  // Only send update once per 30 seconds
-  delay(30000);
+  // Only send update once per 60 seconds
+  delay(60000);
 }
