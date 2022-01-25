@@ -15,7 +15,7 @@ BMx280I2C bmx280(I2C_ADDRESS);
 
 // ADC Battery Monitoring
 const int adcPin = A5;
-float mv_per_lsb = 3600.0F/1024.0F; // 10-bit ADC with 3.6V input range
+// float mv_per_lsb = 3600.0F/1024.0F; // 10-bit ADC with 3.6V input range
 
 // BLE Environmental Sensing Service
 BLEService        envSvc = BLEService(UUID16_SVC_ENVIRONMENTAL_SENSING);  // 0x181A
@@ -50,6 +50,10 @@ void setup()
       if (i > 20) break;
       delay(100);   // for nrf52840 with native usb
     }
+  }
+  else
+  {
+    Serial.end();
   }
   
   //--- setup BME280 sensor -----------------------------------------
@@ -324,6 +328,6 @@ void loop()
   // BME280 sensor sleep
   bmx280.writePowerMode(BMx280MI::BMx280_MODE_SLEEP);
   
-  // Only send update once per 60 seconds
-  delay(60000);
+  // Only send update once per 30 seconds
+  delay(30000);
 }
