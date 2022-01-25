@@ -26,6 +26,9 @@ BLECharacteristic airChar = BLECharacteristic(UUID16_CHR_PRESSURE);       // 0x2
 BLEDis bledis;    // DIS (Device Information Service) helper class instance
 BLEBas blebas;    // BAS (Battery Service) helper class instance
 
+// Create a SoftwareTimer that will drive our i2c sensor.
+SoftwareTimer i2c_timer;
+
 //------------------------------------------------------------------------------
 uint8_t batteryLevel()
 //------------------------------------------------------------------------------
@@ -56,39 +59,6 @@ void setup()
     Serial.end();
   }
   
-  //--- setup BME280 sensor -----------------------------------------
-  Wire.begin();
-
-  //begin() checks the Interface, reads the sensor ID (to differentiate between BMP280 and BME280)
-  //and reads compensation parameters.
-  if (!bmx280.begin())
-  {
-    if (DEBUG) { Serial.println("begin() failed. check your BMx280 Interface and I2C Address."); }
-    while (1);
-  }
-
-  if (DEBUG) //------------------------------------------
-  {
-    if (bmx280.isBME280())
-      Serial.println("sensor is a BME280");
-    else
-      Serial.println("sensor is a BMP280");
-  }
-  
-  //reset sensor to default parameters.
-  bmx280.resetToDefaults();
-
-  //by default sensing is disabled and must be enabled by setting a non-zero
-  //oversampling setting.
-  //set an oversampling setting for pressure and temperature measurements. 
-  bmx280.writeOversamplingPressure(BMx280MI::OSRS_P_x16);
-  bmx280.writeOversamplingTemperature(BMx280MI::OSRS_T_x16);
-
-  //if sensor is a BME280, set an oversampling setting for humidity measurements.
-  if (bmx280.isBME280())
-    bmx280.writeOversamplingHumidity(BMx280MI::OSRS_H_x16);
-  //--- setup BME280 sensor -----------------------------------------
-
   //--- setup BLE ---------------------------------------------------
   if (DEBUG) //------------------------------------------
   {
@@ -126,6 +96,15 @@ void setup()
 
   if (DEBUG) { Serial.println("\nAdvertising"); }
   //--- setup BLE ---------------------------------------------------
+
+  //--- setup timer ---------------------------------------------------
+  // Set up a repeating timer that fires every 60 seconds (60000ms) to read the i2c sensor.
+  i2c_timer.begin(60000, timer_callback);
+  i2c_timer.start();
+
+  // Since loop() is empty, suspend its task so that the system never runs it
+  // and can go to sleep properly.
+  suspendLoop();
 }
 
 //------------------------------------------------------------------------------
@@ -263,9 +242,42 @@ void cccd_callback(short unsigned int conn_hdl, BLECharacteristic* chr, short un
 }
 
 //------------------------------------------------------------------------------
-void loop()
+void timer_callback(TimerHandle_t _handle)
 //------------------------------------------------------------------------------
-{  
+{
+  //--- setup BME280 sensor -----------------------------------------
+  Wire.begin();
+
+  //begin() checks the Interface, reads the sensor ID (to differentiate between BMP280 and BME280)
+  //and reads compensation parameters.
+  if (!bmx280.begin())
+  {
+    if (DEBUG) { Serial.println("begin() failed. check your BMx280 Interface and I2C Address."); }
+    while (1);
+  }
+
+  if (DEBUG) //------------------------------------------
+  {
+    if (bmx280.isBME280())
+      Serial.println("sensor is a BME280");
+    else
+      Serial.println("sensor is a BMP280");
+  }
+  
+  //reset sensor to default parameters.
+  bmx280.resetToDefaults();
+
+  //by default sensing is disabled and must be enabled by setting a non-zero
+  //oversampling setting.
+  //set an oversampling setting for pressure and temperature measurements. 
+  bmx280.writeOversamplingPressure(BMx280MI::OSRS_P_x16);
+  bmx280.writeOversamplingTemperature(BMx280MI::OSRS_T_x16);
+
+  //if sensor is a BME280, set an oversampling setting for humidity measurements.
+  if (bmx280.isBME280())
+    bmx280.writeOversamplingHumidity(BMx280MI::OSRS_H_x16);
+  //--- setup BME280 sensor -----------------------------------------
+
   if ( Bluefruit.connected() ) {
     digitalWrite(LED_RED, LOW);
 
@@ -328,6 +340,10 @@ void loop()
   // BME280 sensor sleep
   bmx280.writePowerMode(BMx280MI::BMx280_MODE_SLEEP);
   
-  // Only send update once per 30 seconds
-  delay(30000);
+  Wire.end();
 }
+
+//------------------------------------------------------------------------------
+void loop()
+//------------------------------------------------------------------------------
+{  }
