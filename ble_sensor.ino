@@ -12,6 +12,8 @@ const boolean DEBUG = false;
 #define I2C_ADDRESS 0x76
 //create a BMx280I2C object using the I2C interface with I2C Address 0x76
 BMx280I2C bmx280(I2C_ADDRESS);
+// define the GPIO pin used as i2c vcc
+#define VCC_I2C 10
 
 // ADC Battery Monitoring
 const int adcPin = A5;
@@ -25,9 +27,6 @@ BLECharacteristic airChar = BLECharacteristic(UUID16_CHR_PRESSURE);       // 0x2
 
 BLEDis bledis;    // DIS (Device Information Service) helper class instance
 BLEBas blebas;    // BAS (Battery Service) helper class instance
-
-// Create a SoftwareTimer that will drive our i2c sensor.
-SoftwareTimer i2c_timer;
 
 //------------------------------------------------------------------------------
 uint8_t batteryLevel()
@@ -97,14 +96,8 @@ void setup()
   if (DEBUG) { Serial.println("\nAdvertising"); }
   //--- setup BLE ---------------------------------------------------
 
-  //--- setup timer ---------------------------------------------------
-  // Set up a repeating timer that fires every 60 seconds (60000ms) to read the i2c sensor.
-  i2c_timer.begin(60000, timer_callback);
-  i2c_timer.start();
-
-  // Since loop() is empty, suspend its task so that the system never runs it
-  // and can go to sleep properly.
-  suspendLoop();
+  //--- power on i2c vcc --------------------------------------------
+  pinMode(VCC_I2C, OUTPUT);
 }
 
 //------------------------------------------------------------------------------
@@ -242,9 +235,14 @@ void cccd_callback(short unsigned int conn_hdl, BLECharacteristic* chr, short un
 }
 
 //------------------------------------------------------------------------------
-void timer_callback(TimerHandle_t _handle)
+void loop()
 //------------------------------------------------------------------------------
 {
+  //--- power on i2c vcc --------------------------------------------
+  digitalWrite(VCC_I2C, HIGH);
+  if (DEBUG) Serial.println("setting pin VCC_I2C to HIGH");
+  delay(10);
+  
   //--- setup BME280 sensor -----------------------------------------
   Wire.begin();
 
@@ -341,9 +339,10 @@ void timer_callback(TimerHandle_t _handle)
   bmx280.writePowerMode(BMx280MI::BMx280_MODE_SLEEP);
   
   Wire.end();
-}
 
-//------------------------------------------------------------------------------
-void loop()
-//------------------------------------------------------------------------------
-{  }
+  //--- power off i2c vcc --------------------------------------------
+  digitalWrite(VCC_I2C, LOW);
+  if (DEBUG) Serial.println("setting pin VCC_I2C to LOW");
+
+  delay(30000);  // 30s
+}
