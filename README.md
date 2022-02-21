@@ -47,4 +47,5 @@ The i2c bus and the sensor board seem to be the power hungry culprits
 
 **Runtime: 347 h (ca. 14 days)**
 **Estimated current consumption: 1,4 mA**
+
 (500 mAh / 338h = 1,4 mA)
