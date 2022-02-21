@@ -16,8 +16,7 @@ Bluetooth Low Energy Sensor with Adafruit ItsyBitsy nRF52840 and BME280 module
 **measured battery level: 10 %**
 
 **Runtime: 171 h, 35 min (ca. 7 days)** <br /> 
-**Estimated current consumption: 3 mA**
-
+**Estimated current consumption: 3 mA** <br />
 (500 mAh / 171,5h = 2,9 mA)
 
 ***
@@ -42,10 +41,10 @@ The i2c bus and the sensor board seem to be the power hungry culprits
 **Start time: 06.02.2022, 10:30** <br /> 
 **measured battery level: 70%**
 
-**Stop time: 20.02.2022, 21:30**
+**Stop time: 20.02.2022, 21:30** <br />
 **measured battery level: 10%**
 
-**Runtime: 347 h (ca. 14 days)**
-**Estimated current consumption: 1,4 mA**
+**Runtime: 347 h (ca. 14 days)** <br />
+**Estimated current consumption: 1,4 mA** <br />
 
 (500 mAh / 338h = 1,4 mA)
