@@ -42,4 +42,9 @@ The i2c bus and the sensor board seem to be the power hungry culprits
 **Start time: 06.02.2022, 10:30** <br /> 
 **measured battery level: 70%**
 
-**still running**
+**Stop time: 20.02.2022, 21:30**
+**measured battery level: 10%**
+
+**Runtime: 347 h (ca. 14 days)**
+**Estimated current consumption: 1,4 mA**
+(500 mAh / 338h = 1,4 mA)
